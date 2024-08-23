@@ -1,0 +1,7 @@
+services:
+  aws-cli:
+    build: .
+    volumes:
+      - ~/.aws:/root/.aws
+      - ~/.ssh:/root/.ssh
+      - .:/root/aws-cli

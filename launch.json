@@ -1,0 +1,352 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Template to launch a new EC2 instance with Dokku installed with supporting services",
+  "Parameters": {
+    "ApplicationName": {
+      "Description": "Name of the first application to set up on this Dokku instance",
+      "Type": "String"
+    },
+    "CDNSigningPrivateKey": {
+      "Description": "The private key used for signing requests to CloudFront",
+      "Type": "String"
+    },
+    "CDNSigningPublicKey": {
+      "Description": "The public key used for signing requests to CloudFront",
+      "Type": "String"
+    },
+    "DokkuVersion": {
+      "Description": "Dokku version to install, e.g., \"v0.34.8\" (see https://github.com/dokku/dokku/releases).",
+      "Type": "String",
+      "Default": "v0.34.8"
+    },
+    "DokkuHostname": {
+      "Description": "The domain name for accessing this application",
+      "Type": "String"
+    },
+    "InstanceImageId": {
+      "Description": "The AMI ID for the application server instance",
+      "Type": "String"
+    },
+    "InstanceType": {
+      "Description": "The application server instance type",
+      "Type": "String",
+      "Default": "t2.micro",
+      "AllowedValues": ["t2.micro", "t3.micro", "t4g.nano", "t4g.micro", "t4g.small", "t4g.medium", "t4g.large"]
+    },
+    "InstanceRootVolumeSize": {
+      "Description": "The size of the root volume (in GB).",
+      "Type": "Number",
+      "Default": "30"
+    },
+    "LetsEncryptEmail": {
+      "Description": "Email address to use with LetsEncrypt, to receive notifications of SSL cert renewals, etc",
+      "Type": "String"
+    }
+  },
+  "Conditions": {
+    "DomainNameIsEmpty": { "Fn::Equals": [{ "Ref": "DokkuHostname" }, ""] }
+  },
+  "Resources": {
+    "Bucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {        
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "DeleteOrphanUploadsRule",
+              "Prefix": "uploads/",
+              "Status": "Enabled",
+              "ExpirationInDays": 1
+            }
+          ]
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": "TRUE",
+          "BlockPublicPolicy": "TRUE",
+          "IgnorePublicAcls": "TRUE",
+          "RestrictPublicBuckets": "TRUE"
+        }
+      },
+      "DeletionPolicy": "Delete"
+    },
+    "BucketUser": {
+      "Type": "AWS::IAM::User",
+      "Properties": {
+        "Policies": [
+          {
+            "PolicyName": { "Fn::Sub": "dokku-${ApplicationName}-bucket-policy" },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "VisualEditor0",
+                  "Effect": "Allow",
+                  "Action": ["s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject"],
+                  "Resource": [
+                    { "Fn::Join": ["", ["arn:aws:s3:::", { "Ref": "Bucket" }, "/*"]] },
+                    { "Fn::Join": ["", ["arn:aws:s3:::", { "Ref": "Bucket" }]] }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "UserName": { "Fn::Sub": "dokku-${ApplicationName}-bucket-user" }
+      }
+    },
+    "BucketUserAccessKey": {
+      "Type": "AWS::IAM::AccessKey",
+      "Properties": {
+        "Status": "Active",
+        "UserName": { "Ref": "BucketUser" }
+      }
+    },
+    "BucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": { "Ref": "Bucket" },
+        "PolicyDocument": {
+          "Version": "2008-10-17",
+          "Id": "PolicyForCloudFrontPrivateContent",
+          "Statement": [
+            {
+              "Sid": "AllowCloudFrontServicePrincipal",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+              },
+              "Action": "s3:GetObject",
+              "Resource": { "Fn::Join": ["", [{ "Fn::GetAtt": ["Bucket", "Arn"] }, "/*"]] },
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": {
+                    "Fn::Join": ["", ["arn:aws:cloudfront::", { "Ref": "AWS::AccountId" }, ":distribution/", { "Ref": "CDN" }]]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "CDN": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Properties": {
+        "DistributionConfig": {
+          "DefaultCacheBehavior": {
+            "AllowedMethods": ["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
+            "CachedMethods": ["GET", "HEAD"],
+            "CachePolicyId": { "Ref": "CDNCachePolicy" },
+            "Compress": "true",
+            "TargetOriginId": { "Fn::Sub": "dokku-${ApplicationName}-cf-bucket-origin" },
+            "TrustedKeyGroups": [{ "Ref": "CDNKeyGroup" }],
+            "ViewerProtocolPolicy": "redirect-to-https"
+          },
+          "Enabled": "true",
+          "HttpVersion": "http2",
+          "IPV6Enabled": "true",
+          "Origins": [
+            {
+              "DomainName": { "Fn::GetAtt": ["Bucket", "RegionalDomainName"] },
+              "Id": { "Fn::Sub": "dokku-${ApplicationName}-cf-bucket-origin" },
+              "OriginAccessControlId": { "Fn::GetAtt": ["CDNOriginAccessControl", "Id"] },
+              "S3OriginConfig": {
+                "OriginAccessIdentity": ""
+              }
+            }
+          ],
+          "PriceClass": "PriceClass_All"
+        }
+      }
+    },
+    "CDNCachePolicy": {
+      "Type": "AWS::CloudFront::CachePolicy",
+      "Properties": {
+        "CachePolicyConfig": {
+          "Comment": "Policy with caching enabled. Supports Gzip and Brotli compression.",
+          "DefaultTTL": 86400,
+          "MaxTTL": 31536000,
+          "MinTTL": 1,
+          "Name": { "Fn::Sub": "dokku-${ApplicationName}-cf-cache-policy" },
+          "ParametersInCacheKeyAndForwardedToOrigin": {
+            "CookiesConfig": {
+              "CookieBehavior": "none"
+            },
+            "EnableAcceptEncodingBrotli": "true",
+            "EnableAcceptEncodingGzip": "true",
+            "HeadersConfig": {
+              "HeaderBehavior": "none"
+            },
+            "QueryStringsConfig": {
+              "QueryStringBehavior": "none"
+            }
+          }
+        }
+      }
+    },
+    "CDNKeyGroup": {
+      "Type": "AWS::CloudFront::KeyGroup",
+      "Properties": {
+        "KeyGroupConfig": {
+          "Items": [{ "Ref": "CDNPublicKey" }],
+          "Name": { "Fn::Sub": "dokku-${ApplicationName}-cf-key-group" }
+        }
+      }
+    },
+    "CDNOriginAccessControl": {
+      "Type": "AWS::CloudFront::OriginAccessControl",
+      "Properties": {
+        "OriginAccessControlConfig": {
+          "Name": { "Fn::Sub": "dokku-${ApplicationName}-cf-bucket-origin-access-control" },
+          "OriginAccessControlOriginType": "s3",
+          "SigningBehavior": "always",
+          "SigningProtocol": "sigv4"
+        }
+      }
+    },
+    "CDNPublicKey": {
+      "Type": "AWS::CloudFront::PublicKey",
+      "Properties": {
+        "PublicKeyConfig": {
+          "CallerReference": { "Fn::Sub": "dokku-${ApplicationName}-cf-public-key-caller-reference" },
+          "EncodedKey": { "Ref": "CDNSigningPublicKey" },
+          "Name": { "Fn::Sub": "dokku-${ApplicationName}-cf-public-key" }
+        }
+      }
+    },
+    "ElasticIP": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "InstanceId": { "Ref": "Instance" }
+      }
+    },
+    "Instance": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": { "Ref": "InstanceImageId" },
+        "InstanceType": { "Ref": "InstanceType" },
+        "KeyName": { "Ref": "KeyPair" },
+        "SecurityGroups": [{ "Ref": "InstanceSecurityGroup" }],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/sda1",
+            "Ebs": {
+              "VolumeSize": { "Ref": "InstanceRootVolumeSize" }
+            }
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": ["", [
+              "#!/bin/bash\n",
+              "sudo apt-get update -y\n",
+              "wget -NP . https://dokku.com/install/", { "Ref": "DokkuVersion" }, "/bootstrap.sh\n",
+              "sudo DOKKU_TAG=", { "Ref": "DokkuVersion" }, " bash bootstrap.sh\n",
+              "cat ~/.ssh/authorized_keys | dokku ssh-keys:add admin\n",
+              "dokku domains:set-global ", { "Ref": "DokkuHostname" }, "\n",
+              "dokku apps:create ", { "Ref": "ApplicationName" }, "\n",
+              "dokku domains:set ", { "Ref": "ApplicationName" }, " ", { "Ref": "ApplicationName" }, ".", { "Ref": "DokkuHostname" }, "\n",
+              "sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git\n",
+              "dokku postgres:create ", { "Ref": "ApplicationName" }, "db\n",
+              "dokku postgres:link ", { "Ref": "ApplicationName" }, "db ", { "Ref": "ApplicationName" }, "\n",
+              "sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git\n",
+              "dokku letsencrypt:set --global email ", { "Ref": "LetsEncryptEmail" }, "\n",
+              "dokku letsencrypt:cron-job --add\n",
+              "dokku config:set ", { "Ref": "ApplicationName" }, " AWS_CLOUDFRONT_DOMAIN=", { "Fn::GetAtt": ["CDN", "DomainName"] }, "\n",
+              "dokku config:set ", { "Ref": "ApplicationName" }, " AWS_CLOUDFRONT_KEYPAIR_ID=", { "Fn::GetAtt": ["CDNPublicKey", "Id"] }, "\n",
+              "dokku config:set ", { "Ref": "ApplicationName" }, " AWS_CLOUDFRONT_PRIVATE_KEY=", { "Ref": "CDNSigningPrivateKey" }, "\n",
+              "dokku config:set ", { "Ref": "ApplicationName" }, " AWS_S3_ACCESS_KEY_ID=", { "Ref": "BucketUserAccessKey" }, "\n",
+              "dokku config:set ", { "Ref": "ApplicationName" }, " AWS_S3_SECRET_ACCESS_KEY=", { "Fn::GetAtt": ["BucketUserAccessKey", "SecretAccessKey"] }, "\n",
+              "dokku config:set ", { "Ref": "ApplicationName" }, " AWS_S3_BUCKET=", { "Ref": "Bucket" }, "\n",
+              "dokku config:set ", { "Ref": "ApplicationName" }, " AWS_S3_ENDPOINT=", { "Fn::Sub": "https://s3.${AWS::Region}.amazonaws.com" }, "\n",
+              "dokku config:set ", { "Ref": "ApplicationName" }, " AWS_S3_REGION=", { "Ref": "AWS::Region" }, "\n",
+              "dokku config:set ", { "Ref": "ApplicationName" }, " AWS_SES_REGION=", { "Ref": "AWS::Region" }, "\n",
+              "dokku config:set ", { "Ref": "ApplicationName" }, " AWS_SES_ACCESS_KEY_ID=", { "Ref": "SESUserAccessKey" }, "\n",
+              "dokku config:set ", { "Ref": "ApplicationName" }, " AWS_SES_SECRET_ACCESS_KEY=", { "Fn::GetAtt": ["SESUserAccessKey", "SecretAccessKey"] }, "\n"
+            ]]
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Ref": "AWS::StackName" }
+          }
+        ]
+      }
+    },
+    "InstanceSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": { "Fn::Sub": "dokku-${ApplicationName}-ec2-sg" },
+        "GroupDescription": "Allow http/https/ssh traffic",
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "IpProtocol": "tcp",
+            "FromPort": 80,
+            "ToPort": 80
+          },
+          {
+            "CidrIp": "0.0.0.0/0",
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443
+          },
+          {
+            "CidrIp": "0.0.0.0/0",
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22
+          }
+        ]
+      }
+    },
+    "KeyPair": {
+      "Type": "AWS::EC2::KeyPair",
+      "Properties": {
+        "KeyName": { "Fn::Sub": "dokku-${ApplicationName}-key-pair" }
+      }
+    },
+    "SESUser": {
+      "Type": "AWS::IAM::User",
+      "Properties": {
+        "Policies": [
+          {
+            "PolicyName": {
+              "Fn::Sub": "dokku-${ApplicationName}-ses-policy"
+            },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "ses:SendRawEmail",
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ],
+        "UserName": {
+          "Fn::Sub": "dokku-${ApplicationName}-ses-user"
+        }
+      }
+    },
+    "SESUserAccessKey": {
+      "Type": "AWS::IAM::AccessKey",
+      "Properties": {
+        "Status": "Active",
+        "UserName": {
+          "Ref": "SESUser"
+        }
+      }
+    }
+  }
+}
