@@ -16,7 +16,7 @@ fi
 # get the appropriate Debian 12 (Bookworm) AMI for the current region and architecture
 IMAGE_ID=`aws ssm get-parameters-by-path --path /aws/service/debian/release/bookworm/latest --output text | grep -m 1 -oP "${TARGET_ARCH}[[:blank:]]+String[[:blank:]]+\K(ami-[^[:blank:]]+)"`
 
-aws cloudformation create-stack --capabilities CAPABILITY_NAMED_IAM --stack-name dokku-${APP_NAME} --template-body file://./launch.json --parameters ParameterKey=ApplicationName,ParameterValue=$APP_NAME ParameterKey=LetsEncryptEmail,ParameterValue=$LETSENCRYPT_EMAIL ParameterKey=DokkuHostname,ParameterValue="$DOMAIN" ParameterKey=InstanceImageId,ParameterValue="$IMAGE_ID" ParameterKey=InstanceType,ParameterValue="$INSTANCE_TYPE"
+aws cloudformation create-stack --capabilities CAPABILITY_NAMED_IAM --stack-name dokku-${APP_NAME} --template-body file://./dokku.json --parameters ParameterKey=ApplicationName,ParameterValue=$APP_NAME ParameterKey=LetsEncryptEmail,ParameterValue=$LETSENCRYPT_EMAIL ParameterKey=DokkuHostname,ParameterValue="$DOMAIN" ParameterKey=InstanceImageId,ParameterValue="$IMAGE_ID" ParameterKey=InstanceType,ParameterValue="$INSTANCE_TYPE"
 
 # wait for key pair to become available
 while : ; do
