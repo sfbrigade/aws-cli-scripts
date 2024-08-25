@@ -1,2 +1,3 @@
 *.pem
 .env
+ssm-securestring-cfn-macro

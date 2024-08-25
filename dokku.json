@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Template to launch a new EC2 instance with Dokku installed with supporting services",
+  "Description": "EC2 instance with Dokku, Postgres, and LetsEncrypt installed",
   "Outputs": {
     "PublicDnsName": {
       "Description": "Public DNS name of the instance",

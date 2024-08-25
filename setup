@@ -1,0 +1,8 @@
+#!/bin/bash
+
+git clone https://github.com/tazatwell/ssm-securestring-cfn-macro.git
+cd ssm-securestring-cfn-macro
+make build
+make deploy
+cd ..
+rm -Rf ssm-securestring-cfn-macro

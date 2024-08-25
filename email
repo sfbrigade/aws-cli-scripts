@@ -1,0 +1,11 @@
+#!/bin/bash
+
+read -p "App name (lowercase, letters, numbers, hyphen only): " APP_NAME
+
+aws cloudformation create-stack --capabilities CAPABILITY_NAMED_IAM --stack-name ${APP_NAME}-email --template-body file://./email.json --parameters ParameterKey=ApplicationName,ParameterValue=$APP_NAME --output text
+
+# wait for completion
+aws cloudformation wait stack-create-complete --stack-name ${APP_NAME}-email --output text
+
+# download into a pem file in ~/.ssh
+aws ssm get-parameter --name /iam/user/${APP_NAME}-ses-user/secret-access-key --with-decryption --query Parameter.Value --output text

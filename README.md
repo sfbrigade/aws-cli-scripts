@@ -32,6 +32,10 @@ These are a collection of scripts to provision resources in an Amazon Web Servic
 
 ## Scripts
 
+### Setup
+
+The setup script installs a custom CloudFormation macro to support encrypted system parameters (for security). This is required for some scripts to be able to securely store generated credentials.
+
 ### Dokku
 
 The Dokku script launches an EC2 instance running a Debian AMI and installs Dokku with Postgres and LetsEncrypt plug-ins.

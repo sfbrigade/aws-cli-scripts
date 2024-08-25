@@ -1,0 +1,70 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "IAM User account and credentials for sending email using SES",
+  "Outputs": {
+    "SESUserAccessKeyId": {
+      "Description": "Public DNS name of the instance",
+      "Value": {
+        "Ref": "SESUserAccessKey"
+      }
+    }
+  },
+  "Parameters": {
+    "ApplicationName": {
+      "Description": "Name of the application (snake-case, will be prepended to make internal reference names)",
+      "Type": "String",
+      "Default": "app"
+    }
+  },
+  "Resources": {
+    "SESUser": {
+      "Type": "AWS::IAM::User",
+      "Properties": {
+        "Policies": [
+          {
+            "PolicyName": {
+              "Fn::Sub": "${ApplicationName}-ses-policy"
+            },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "ses:SendRawEmail",
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ],
+        "UserName": {
+          "Fn::Sub": "${ApplicationName}-ses-user"
+        }
+      }
+    },
+    "SESUserAccessKey": {
+      "Type": "AWS::IAM::AccessKey",
+      "Properties": {
+        "Status": "Active",
+        "UserName": {
+          "Ref": "SESUser"
+        }
+      }
+    },
+    "SESUserSecretAccessKeyParameter": {
+      "Type" : "Custom::SSMSecureStringParam",
+      "Properties" : {
+        "Name" :  {
+          "Fn::Sub": "/iam/user/${ApplicationName}-ses-user/secret-access-key"
+        },
+        "ServiceToken": {
+          "Fn::ImportValue": "ssm-securestring-cfn-macro-function-arn"
+        },
+        "Type": "SecureString",
+        "Value" : {
+          "Fn::GetAtt": ["SESUserAccessKey", "SecretAccessKey"]
+        }
+      }
+    }
+  }
+}
