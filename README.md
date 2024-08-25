@@ -36,7 +36,7 @@ These are a collection of scripts to provision resources in an Amazon Web Servic
 
 The Dokku script launches an EC2 instance running a Debian AMI, installs Dokku with Postgres and LetsEncrypt plug-ins, and attaches a public Elastic IP address. 
 
-Run `./dokku` and follow the prompts to enter an application name, domain, email address for SSL cert registration, and instance type (default is t2.micro which is 12 month Free-Tier eligible in supported regions).
+Run `./dokku` and follow the prompts to enter an application name, domain, email address for SSL cert registration, and instance type.
 
 After completing successfully, the script will store an SSH key in `~/.ssh` to be used to log in to the new instance.
 
@@ -44,7 +44,6 @@ After completing successfully, the script will store an SSH key in `~/.ssh` to b
 
 Configure the DNS records for your domain to point to the new IP addres of the instance.
 
-Note: it may take up to 20 minutes to complete the post-launch installation and setup of Dokku, due to SSL parameter prime number generation.
+Note: it may take up to 20 minutes to complete the post-launch installation and setup of Dokku, due to SSL parameter prime number generation. You can monitor the post-launch setup by logging in as above, then watching the log with: `tail -f /var/log/cloud-init-output.log`
 
-
-
+The default instance type recommended by the script is t3a.small, which will cost about $14/mo.

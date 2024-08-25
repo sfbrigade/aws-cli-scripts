@@ -3,8 +3,8 @@
 read -p "App name (lowercase, letters, numbers, hyphen only): " APP_NAME
 read -p "Host domain for the instance: " DOMAIN
 read -p "Contact email to use for LetsEncrypt SSL registration: " LETSENCRYPT_EMAIL
-read -p "Instance type [t2.micro]: " INSTANCE_TYPE
-INSTANCE_TYPE=${INSTANCE_TYPE:=t2.micro}
+read -p "Instance type [t3a.small]: " INSTANCE_TYPE
+INSTANCE_TYPE=${INSTANCE_TYPE:=t3a.small}
 
 # determine architecture type from instance type
 if [[ "$INSTANCE_TYPE" =~ g\. ]]; then

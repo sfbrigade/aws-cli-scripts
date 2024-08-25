@@ -12,9 +12,12 @@
       }
     },
     "PublicIP": {
-      "Description": "Public IP address of the Elastic IP associated with the instance",
+      "Description": "Public IP address of the instance",
       "Value": {
-        "Ref": "ElasticIP"
+        "Fn::GetAtt": [
+          "Instance",
+          "PublicIp"
+        ]
       }
     }
   },
@@ -43,15 +46,14 @@
     },
     "InstanceType": {
       "AllowedValues": [
-        "t2.micro",
-        "t3.micro",
-        "t4g.nano",
-        "t4g.micro",
+        "t2.small",
+        "t3.small",
+        "t3a.small",
         "t4g.small",
         "t4g.medium",
         "t4g.large"
       ],
-      "Default": "t2.micro",
+      "Default": "t3a.small",
       "Description": "The application server instance type",
       "Type": "String"
     },
@@ -61,14 +63,6 @@
     }
   },
   "Resources": {
-    "ElasticIP": {
-      "Properties": {
-        "InstanceId": {
-          "Ref": "Instance"
-        }
-      },
-      "Type": "AWS::EC2::EIP"
-    },
     "Instance": {
       "Properties": {
         "BlockDeviceMappings": [
@@ -126,6 +120,7 @@
                   "Ref": "DokkuHostname"
                 },
                 "\n",
+                "dokku builder:set --global selected herokuish\n",
                 "sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git\n",
                 "sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git\n",
                 "dokku letsencrypt:set --global email ",
