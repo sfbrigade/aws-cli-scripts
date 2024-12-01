@@ -1,0 +1,17 @@
+#!/bin/bash
+
+read -p "App name (lowercase, letters, numbers, hyphen only): " APP_NAME
+read -p "Bucket name: " BUCKET_NAME
+
+aws cloudformation create-stack --capabilities CAPABILITY_NAMED_IAM --stack-name ${APP_NAME}-transcribe --template-body file://./transcribe.json --parameters ParameterKey=ApplicationName,ParameterValue=$APP_NAME ParameterKey=BucketName,ParameterValue=$BUCKET_NAME --output text
+
+# wait for completion
+aws cloudformation wait stack-create-complete --stack-name ${APP_NAME}-transcribe --output text
+
+# output the access key id
+echo "Access Key ID:"
+aws cloudformation describe-stacks --stack-name ${APP_NAME}-transcribe --query 'Stacks[0].Outputs[?OutputKey==`TranscribeUserAccessKeyId`].OutputValue' --output text 
+
+# output the secret access key
+echo "Secret Access Key:"
+aws ssm get-parameter --name /iam/user/${APP_NAME}-transcribe-user/secret-access-key --with-decryption --query Parameter.Value --output text

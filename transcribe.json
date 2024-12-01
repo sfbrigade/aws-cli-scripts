@@ -1,0 +1,87 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "IAM User account and credentials for accessing AWS Transcribe",
+  "Outputs": {
+    "TranscribeUserAccessKeyId": {
+      "Description": "Access Key ID for the user",
+      "Value": {
+        "Ref": "TranscribeUserAccessKey"
+      },
+      "Export" : {
+        "Name" : {"Fn::Sub": "${ApplicationName}-transcribe-user-access-key-id" }
+      }
+    }
+  },
+  "Parameters": {
+    "ApplicationName": {
+      "Description": "Name of the application (snake-case, will be prepended to make internal reference names)",
+      "Type": "String",
+      "Default": "app"
+    },
+    "BucketName": {
+      "Description": "Name of the S3 bucket where audio files and resulting transcriptions will be stored",
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "TranscribeUser": {
+      "Type": "AWS::IAM::User",
+      "Properties": {
+        "Policies": [
+          {
+            "PolicyName": {
+              "Fn::Sub": "${ApplicationName}-transcribe-policy"
+            },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "VisualEditor0",
+                  "Effect": "Allow",
+                  "Action": ["s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject"],
+                  "Resource": [
+                    { "Fn::Sub": "arn:aws:s3:::${BucketName}/*" },
+                    { "Fn::Sub": "arn:aws:s3:::${BucketName}" }
+                  ]
+                },
+                {
+                  "Sid": "VisualEditor1",
+                  "Effect": "Allow",
+                  "Action": ["transcribe:GetTranscriptionJob", "transcribe:StartTranscriptionJob"],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ],
+        "UserName": {
+          "Fn::Sub": "${ApplicationName}-transcribe-user"
+        }
+      }
+    },
+    "TranscribeUserAccessKey": {
+      "Type": "AWS::IAM::AccessKey",
+      "Properties": {
+        "Status": "Active",
+        "UserName": {
+          "Ref": "TranscribeUser"
+        }
+      }
+    },
+    "TranscribeUserSecretAccessKeyParameter": {
+      "Type" : "Custom::SSMSecureStringParam",
+      "Properties" : {
+        "Name" :  {
+          "Fn::Sub": "/iam/user/${ApplicationName}-transcribe-user/secret-access-key"
+        },
+        "ServiceToken": {
+          "Fn::ImportValue": "ssm-securestring-cfn-macro-function-arn"
+        },
+        "Type": "SecureString",
+        "Value" : {
+          "Fn::GetAtt": ["TranscribeUserAccessKey", "SecretAccessKey"]
+        }
+      }
+    }
+  }
+}

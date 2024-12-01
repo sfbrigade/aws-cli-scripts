@@ -63,3 +63,9 @@ Run `./email` and follow the prompts to enter an application name. The script wi
 The bucket script creates a new S3 bucket and an IAM user with read/write priveleges on it. It will also set up an initial CORS configuration to allow a specified domain name access from the browser.
 
 Run `./bucket` and follow the prompts to enter an application name and a host domain name. The script will output the newly generated bucket name, and the access key id and secret access key for the new user.
+
+### Transcribe
+
+The transcribe script creates a new IAM user with access to AWS Transcribe along with read/write privileges to a specified S3 bucket where audio and transcriptions will be stored.
+
+Run `./transcribe` and follow the prompts to enter an application name and a bucket name. The script will output the access key id and secret access key for the new user.
