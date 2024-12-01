@@ -57,3 +57,9 @@ The default instance type recommended by the script is t3a.small, which will cos
 The email script creates a new IAM user with permissions scoped to Simple Email Service sending.
 
 Run `./email` and follow the prompts to enter an application name. The script will output the access key id and secret access key for the new user.
+
+### Bucket
+
+The bucket script creates a new S3 bucket and an IAM user with read/write priveleges on it. It will also set up an initial CORS configuration to allow a specified domain name access from the browser.
+
+Run `./bucket` and follow the prompts to enter an application name and a host domain name. The script will output the newly generated bucket name, and the access key id and secret access key for the new user.
