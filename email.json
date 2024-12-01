@@ -3,9 +3,12 @@
   "Description": "IAM User account and credentials for sending email using SES",
   "Outputs": {
     "SESUserAccessKeyId": {
-      "Description": "Public DNS name of the instance",
+      "Description": "Access Key ID for the user",
       "Value": {
         "Ref": "SESUserAccessKey"
+      },
+      "Export" : {
+        "Name" : {"Fn::Sub": "${ApplicationName}-ses-user-access-key-id" }
       }
     }
   },

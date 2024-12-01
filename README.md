@@ -51,3 +51,9 @@ Configure the DNS records for your domain to point to the new IP address of the 
 Note: it may take up to 20 minutes to complete the post-launch installation and setup of Dokku, if it performs SSL parameter prime number generation. You can monitor the post-launch setup by logging in as above, then watching the log with: `tail -f /var/log/cloud-init-output.log`
 
 The default instance type recommended by the script is t3a.small, which will cost about $14/mo. Note that Heroku buildbacks may not yet be supported by ARM64 processors.
+
+### Email
+
+The email script creates a new IAM user with permissions scoped to Simple Email Service sending.
+
+Run `./email` and follow the prompts to enter an application name. The script will output the access key id and secret access key for the new user.

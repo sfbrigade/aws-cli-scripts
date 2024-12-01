@@ -7,5 +7,10 @@ aws cloudformation create-stack --capabilities CAPABILITY_NAMED_IAM --stack-name
 # wait for completion
 aws cloudformation wait stack-create-complete --stack-name ${APP_NAME}-email --output text
 
-# download into a pem file in ~/.ssh
+# output the access key id
+echo "Access Key ID:"
+aws cloudformation describe-stacks --stack-name ${APP_NAME}-email --query 'Stacks[0].Outputs[?OutputKey==`SESUserAccessKeyId`].OutputValue' --output text 
+
+# output the secret access key
+echo "Secret Access Key:"
 aws ssm get-parameter --name /iam/user/${APP_NAME}-ses-user/secret-access-key --with-decryption --query Parameter.Value --output text
