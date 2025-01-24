@@ -5,6 +5,8 @@ read -p "Host domain for the instance: " DOMAIN
 read -p "Contact email to use for LetsEncrypt SSL registration: " LETSENCRYPT_EMAIL
 read -p "Instance type [t3a.small]: " INSTANCE_TYPE
 INSTANCE_TYPE=${INSTANCE_TYPE:=t3a.small}
+read -p "Instance root volume size in GB [12]: " VOLUME_SIZE
+VOLUME_SIZE=${VOLUME_SIZE:=12}
 
 # determine architecture type from instance type
 if [[ "$INSTANCE_TYPE" =~ g\. ]]; then
@@ -16,11 +18,11 @@ fi
 # get the appropriate Debian 12 (Bookworm) AMI for the current region and architecture
 IMAGE_ID=`aws ssm get-parameters-by-path --path /aws/service/debian/release/bookworm/latest --output text | grep -m 1 -oP "${TARGET_ARCH}[[:blank:]]+String[[:blank:]]+\K(ami-[^[:blank:]]+)"`
 
-aws cloudformation create-stack --capabilities CAPABILITY_NAMED_IAM --stack-name dokku-${APP_NAME} --template-body file://./dokku.json --parameters ParameterKey=ApplicationName,ParameterValue=$APP_NAME ParameterKey=LetsEncryptEmail,ParameterValue=$LETSENCRYPT_EMAIL ParameterKey=DokkuHostname,ParameterValue="$DOMAIN" ParameterKey=InstanceImageId,ParameterValue="$IMAGE_ID" ParameterKey=InstanceType,ParameterValue="$INSTANCE_TYPE"
+aws cloudformation create-stack --capabilities CAPABILITY_NAMED_IAM --stack-name ${APP_NAME}-dokku --template-body file://./dokku.json --parameters ParameterKey=ApplicationName,ParameterValue=$APP_NAME ParameterKey=LetsEncryptEmail,ParameterValue=$LETSENCRYPT_EMAIL ParameterKey=DokkuHostname,ParameterValue="$DOMAIN" ParameterKey=InstanceImageId,ParameterValue="$IMAGE_ID" ParameterKey=InstanceType,ParameterValue="$INSTANCE_TYPE" ParameterKey=InstanceRootVolumeSize,ParameterValue="$VOLUME_SIZE"
 
 # wait for key pair to become available
 while : ; do
-  KEY_NAME=`aws ec2 describe-key-pairs --filters Name=key-name,Values=dokku-${APP_NAME}-key-pair --query KeyPairs[*].KeyPairId --output text`
+  KEY_NAME=`aws ec2 describe-key-pairs --filters Name=key-name,Values=${APP_NAME}-dokku-key-pair --query KeyPairs[*].KeyPairId --output text`
   if [ "$KEY_NAME" != "" ]; then
     break
   fi
@@ -28,5 +30,5 @@ while : ; do
 done
 
 # download into a pem file in ~/.ssh
-aws ssm get-parameter --name /ec2/keypair/${KEY_NAME} --with-decryption --query Parameter.Value --output text > ~/.ssh/dokku-${APP_NAME}-key-pair.pem
-chmod 600 ~/.ssh/dokku-${APP_NAME}-key-pair.pem
+aws ssm get-parameter --name /ec2/keypair/${KEY_NAME} --with-decryption --query Parameter.Value --output text > ~/.ssh/${APP_NAME}-dokku-key-pair.pem
+chmod 600 ~/.ssh/${APP_NAME}-dokku-key-pair.pem

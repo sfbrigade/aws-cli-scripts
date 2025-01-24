@@ -44,7 +44,7 @@ Run `./dokku` and follow the prompts to enter an application name, domain, email
 
 After completing successfully, the script will store an SSH key in `~/.ssh` to be used to log in to the new instance.
 
-`ssh -i ~/.ssh/dokku-[App name]-key-pair.pem admin@[Domain or/IP address of instance]`
+`ssh -i ~/.ssh/[App name]-dokku-key-pair.pem admin@[Domain or/IP address of instance]`
 
 Configure the DNS records for your domain to point to the new IP address of the instance to use a domain name address.
 
