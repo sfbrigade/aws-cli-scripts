@@ -23,7 +23,7 @@
   },
   "Parameters": {
     "ApplicationName": {
-      "Description": "Name of the first application to set up on this Dokku instance",
+      "Description": "Name of the application being set up",
       "Type": "String"
     },
     "DokkuHostname": {
@@ -31,8 +31,8 @@
       "Type": "String"
     },
     "DokkuVersion": {
-      "Default": "v0.35.14",
-      "Description": "Dokku version to install, e.g., \"v0.35.14\" (see https://github.com/dokku/dokku/releases).",
+      "Default": "v0.35.16",
+      "Description": "Dokku version to install, e.g., \"v0.35.16\" (see https://github.com/dokku/dokku/releases).",
       "Type": "String"
     },
     "InstanceImageId": {
@@ -75,6 +75,9 @@
             }
           }
         ],
+        "IamInstanceProfile": {
+          "Ref": "InstanceProfile"
+        },
         "ImageId": {
           "Ref": "InstanceImageId"
         },
@@ -120,7 +123,7 @@
                   "Ref": "DokkuHostname"
                 },
                 "\n",
-                "dokku builder:set --global selected herokuish\n",
+                "dokku builder:set --global selected dockerfile\n",
                 "sudo dokku plugin:install https://github.com/dokku/dokku-postgres.git\n",
                 "sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git\n",
                 "dokku letsencrypt:set --global email ",
@@ -172,6 +175,86 @@
         }
       },
       "Type": "AWS::EC2::KeyPair"
+    },
+    "Bucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": {
+          "Fn::Sub": "${ApplicationName}-dokku-backups"
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": "TRUE",
+          "BlockPublicPolicy": "TRUE",
+          "IgnorePublicAcls": "TRUE",
+          "RestrictPublicBuckets": "TRUE"
+        }
+      },
+      "DeletionPolicy": "Delete"
+    },
+    "InstanceRole": {
+      "Type" : "AWS::IAM::Role",
+      "Properties" : {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies" : [
+          {
+            "PolicyName": {
+              "Fn::Sub": "${ApplicationName}-dokku-backups-policy"
+            },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "VisualEditor0",
+                  "Effect": "Allow",
+                  "Action": ["s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject"],
+                  "Resource": [
+                    { "Fn::Join": ["", ["arn:aws:s3:::", { "Ref": "Bucket" }, "/*"]] },
+                    { "Fn::Join": ["", ["arn:aws:s3:::", { "Ref": "Bucket" }]] }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "RoleName" : {
+          "Fn::Sub": "${ApplicationName}-dokku-iam-role"
+        }
+      }
+    },
+    "InstanceProfile": {
+      "Type" : "AWS::IAM::InstanceProfile",
+      "Properties" : {
+        "InstanceProfileName" : {
+          "Fn::Sub": "${ApplicationName}-dokku-iam-instance-profile"
+        },
+        "Roles" : [
+          {
+            "Ref": "InstanceRole"
+          }
+        ]
+      }
     }
   }
 }
