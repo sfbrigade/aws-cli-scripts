@@ -31,8 +31,8 @@
       "Type": "String"
     },
     "DokkuVersion": {
-      "Default": "v0.35.16",
-      "Description": "Dokku version to install, e.g., \"v0.35.16\" (see https://github.com/dokku/dokku/releases).",
+      "Default": "v0.36.10",
+      "Description": "Dokku version to install, e.g., \"v0.36.0\" (see https://github.com/dokku/dokku/releases).",
       "Type": "String"
     },
     "InstanceImageId": {
@@ -40,7 +40,7 @@
       "Type": "String"
     },
     "InstanceRootVolumeSize": {
-      "Default": "12",
+      "Default": "24",
       "Description": "The size of the root volume (in GB).",
       "Type": "Number"
     },
@@ -48,7 +48,11 @@
       "AllowedValues": [
         "t2.small",
         "t3.small",
+        "t3.medium",
+        "t3.large",
         "t3a.small",
+        "t3a.medium",
+        "t3a.large",
         "t4g.small",
         "t4g.medium",
         "t4g.large"
