@@ -13,5 +13,6 @@ echo "Access Key ID:"
 aws cloudformation describe-stacks --stack-name ${APP_NAME}-transcribe --query 'Stacks[0].Outputs[?OutputKey==`TranscribeUserAccessKeyId`].OutputValue' --output text 
 
 # output the secret access key
+SECRET_ARN=`aws cloudformation describe-stacks --stack-name ${APP_NAME}-transcribe --query 'Stacks[0].Outputs[?OutputKey==\`TranscribeUserSecretAccessKeyARN\`].OutputValue' --output text`
 echo "Secret Access Key:"
-aws ssm get-parameter --name /iam/user/${APP_NAME}-transcribe-user/secret-access-key --with-decryption --query Parameter.Value --output text
+aws secretsmanager get-secret-value --query 'SecretString' --output text --secret-id $SECRET_ARN

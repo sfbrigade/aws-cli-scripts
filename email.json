@@ -10,6 +10,15 @@
       "Export" : {
         "Name" : {"Fn::Sub": "${ApplicationName}-ses-user-access-key-id" }
       }
+    },
+    "SESUserSecretAccessKeyARN": {
+      "Description": "ARN for the Secrets Manager secret containing the Secret Access Key for the user",
+      "Value": {
+        "Ref": "SESUserSecretAccessKey"
+      },
+      "Export" : {
+        "Name" : {"Fn::Sub": "${ApplicationName}-ses-user-secret-access-key-arn" }
+      }
     }
   },
   "Parameters": {
@@ -54,17 +63,13 @@
         }
       }
     },
-    "SESUserSecretAccessKeyParameter": {
-      "Type" : "Custom::SSMSecureStringParam",
+    "SESUserSecretAccessKey": {
+      "Type" : "AWS::SecretsManager::Secret",
       "Properties" : {
         "Name" :  {
           "Fn::Sub": "/iam/user/${ApplicationName}-ses-user/secret-access-key"
         },
-        "ServiceToken": {
-          "Fn::ImportValue": "ssm-securestring-cfn-macro-function-arn"
-        },
-        "Type": "SecureString",
-        "Value" : {
+        "SecretString" : {
           "Fn::GetAtt": ["SESUserAccessKey", "SecretAccessKey"]
         }
       }
